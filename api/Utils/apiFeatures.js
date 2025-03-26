@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { securityConfig } from "./security-config.js";
 
 export class ApiFeatures {
-  constructor(model, query, userRole = "user") {
+  constructor(model, query, userRole = "guest") {
     this.Model = model;
     this.query = { ...query };
     this.userRole = userRole;
