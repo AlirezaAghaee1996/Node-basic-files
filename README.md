@@ -474,7 +474,4 @@ GET /api/products?
   name[regex]=^Samsung
 ```
 
-## 📚 مستندات تکمیلی
-- **Documentation:** DOCUMENTATION.md
-- **گزارش اشکال:** Issues Page
-- **پیشنهادات:** Discussions Page
+
