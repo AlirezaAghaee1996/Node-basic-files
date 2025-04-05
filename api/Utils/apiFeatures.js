@@ -89,7 +89,9 @@ export class ApiFeatures {
   }
 
   addManualFilter(filters) {
-    this.manualFilters = { ...this.manualFilters, ...filters };
+    if(filters){
+      this.manualFilters = { ...this.manualFilters, ...filters };
+    }
     return this;
   }
 
