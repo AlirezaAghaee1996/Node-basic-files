@@ -65,25 +65,38 @@ export class ApiFeatures {
     );
     return this;
   }
-
   populate(fields = "") {
     const queryFields = this.query.populate?.split(",") || [];
     const manualFields = fields.split(",").filter(Boolean);
     const allFields = [...new Set([...queryFields, ...manualFields])];
-
+  
     allFields.forEach(field => {
       const { collection, isArray } = this.#getCollectionInfo(field.trim());
-      this.pipeline.push(
-        {
-          $lookup: {
-            from: collection,
-            localField: field,
-            foreignField: "_id",
-            as: field
+      this.pipeline.push({
+        $lookup: {
+          from: collection,
+          localField: field,
+          foreignField: "_id",
+          as: field
+        }
+      });
+  
+      // Fix the $unwind stage
+      if (isArray) {
+        this.pipeline.push({
+          $unwind: {
+            path: `$${field}`,
+            preserveNullAndEmptyArrays: true
           }
-        },
-        { $unwind: isArray ? { path: `$${field}`, preserveNullAndEmptyArrays: true } : "" }
-      );
+        });
+      } else {
+        this.pipeline.push({
+          $unwind: {
+            path: `$${field}`,
+            preserveNullAndEmptyArrays: true
+          }
+        });
+      }
     });
     return this;
   }
@@ -139,21 +152,19 @@ export class ApiFeatures {
         .replace(/\b(gte|gt|lte|lt|in|nin|eq|ne|regex|exists|size)\b/g, "$$$&")
     );
   }
-
   #applySecurityFilters(filters) {
     let result = { ...filters };
-
-    // Remove forbidden fields
+  
     securityConfig.forbiddenFields.forEach(field => delete result[field]);
-
-    // Role-based filtering
-    if (this.userRole !== "admin") {
+  
+    if (this.userRole !== "admin" && this.Model.schema.path("isActive")) {
       result.isActive = true;
       result = this.#sanitizeNestedObjects(result);
     }
-
+  
     return result;
   }
+  
 
   #sanitizeNestedObjects(obj) {
     return Object.entries(obj).reduce((acc, [key, value]) => {
