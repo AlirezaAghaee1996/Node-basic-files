@@ -65,41 +65,79 @@ export class ApiFeatures {
     );
     return this;
   }
-  populate(fields = "") {
-    const queryFields = this.query.populate?.split(",") || [];
-    const manualFields = fields.split(",").filter(Boolean);
-    const allFields = [...new Set([...queryFields, ...manualFields])];
-  
-    allFields.forEach(field => {
-      const { collection, isArray } = this.#getCollectionInfo(field.trim());
-      this.pipeline.push({
-        $lookup: {
-          from: collection,
-          localField: field,
-          foreignField: "_id",
-          as: field
-        }
-      });
-  
-      // Fix the $unwind stage
-      if (isArray) {
-        this.pipeline.push({
-          $unwind: {
-            path: `$${field}`,
-            preserveNullAndEmptyArrays: true
-          }
-        });
-      } else {
-        this.pipeline.push({
-          $unwind: {
-            path: `$${field}`,
-            preserveNullAndEmptyArrays: true
-          }
+  populate(input = "") {
+    // Determine the fields and projection options based on the input type.
+    let fields = [];
+    let projection = {};
+    
+    if (typeof input === "object" && input.path) {
+      // If an object is provided, use input.path and input.select.
+      fields = input.path.split(",").filter(Boolean);
+      if (input.select) {
+        input.select.split(" ").forEach(field => {
+          if (field) projection[field.trim()] = 1;
         });
       }
+    } else if (typeof input === "string") {
+      // Fallback to handling comma-separated string.
+      fields = input.split(",").filter(Boolean);
+    }
+    
+    // Also include any fields in the query string `populate` parameter.
+    const queryFields = this.query.populate?.split(",").filter(Boolean) || [];
+    fields = [...new Set([...queryFields, ...fields])];
+  
+    fields.forEach(field => {
+      field = field.trim();
+      const { collection, isArray } = this.#getCollectionInfo(field);
+  
+      // Prepare the lookup stage.
+      // If a projection was specified (i.e. from input.select) then use the pipeline lookup syntax.
+      let lookupStage = {};
+      if (Object.keys(projection).length > 0) {
+        // Using pipeline with let & $expr for custom projection.
+        lookupStage = {
+          $lookup: {
+            from: collection,
+            let: { localField: `$${field}` },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$_id", "$$localField"] }
+                }
+              },
+              { $project: projection }
+            ],
+            as: field
+          }
+        };
+      } else {
+        // Default lookup without pipeline if no selection is needed.
+        lookupStage = {
+          $lookup: {
+            from: collection,
+            localField: field,
+            foreignField: "_id",
+            as: field
+          }
+        };
+      }
+  
+      // Push the lookup stage.
+      this.pipeline.push(lookupStage);
+  
+      // Add an unwind stage, with preserved nulls, regardless of isArray.
+      // (You can customize this logic further if needed.)
+      this.pipeline.push({
+        $unwind: {
+          path: `$${field}`,
+          preserveNullAndEmptyArrays: true
+        }
+      });
     });
     return this;
   }
+  
 
   addManualFilters(filters) {
     if(filters){
