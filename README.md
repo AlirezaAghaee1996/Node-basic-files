@@ -1,59 +1,55 @@
+```markdown
+# Advanced API Features & Security Config for MongoDB
 
-# Advanced API Features & Security Config for MongoDB  
-# کلاس پیشرفته API Features و تنظیمات امنیتی برای MongoDB
+This repository provides a robust, feature-rich, and secure solution for building, customizing, and optimizing your Node.js APIs powered by MongoDB.
 
-A robust, feature-rich, and secure solution to build, customize, and optimize your Node.js APIs powered by MongoDB.  
-یک راهکار قدرتمند، جامع و امن برای ساخت، شخصی‌سازی و بهینه‌سازی APIهای Node.js مبتنی بر MongoDB.
+این مخزن راهکاری قدرتمند، جامع و امن برای ساخت، شخصی‌سازی و بهینه‌سازی APIهای Node.js مبتنی بر MongoDB ارائه می‌دهد.
 
 ---
 
 ## Table of Contents / فهرست مطالب
-- [Installation & Setup / نصب و راه‌اندازی](#installation--setup--نصب-و-راه‌اندازی)
-- [Overview / معرفی](#overview--معرفی)
-- [API Features Class Methods / متدهای کلاس API Features](#api-features-class-methods--متدهای-کلاس-api-features)
-  - [filter() / فیلتر](#filter--فیلتر)
-  - [sort() / مرتب‌سازی](#sort--مرتب‌سازی)
-  - [limitFields() / انتخاب فیلدها](#limitfields--انتخاب-فیلدها)
-  - [paginate() / صفحه‌بندی](#paginate--صفحه‌بندی)
-  - [populate() / پرکردن (Populate)](#populate--پرکردن-populate)
-  - [addManualFilters() / فیلترهای دستی](#addmanualfilters--فیلترهای-دستی)
-  - [execute() / اجرا](#execute--اجرا)
-- [Input Types & Supported Operators / انواع ورودی و اپراتورهای پشتیبانی‌شده](#input-types--supported-operators--انواع-ورودی-و-اپراتورهای-پشتیبانی‌شده)
-- [Additional Conditions / شرایط اضافی](#additional-conditions--شرایط-اضافی)
-- [Security Configuration / تنظیمات امنیتی](#security-configuration--تنظیمات-امنیتی)
-- [Full Examples / مثال‌های کامل](#full-examples--مثال‌های-کامل)
-- [Summary / جمع‌بندی](#summary--جمع‌بندی)
+
+1. [Installation & Setup / نصب و راه‌اندازی](#installation--setup)
+2. [Overview / معرفی](#overview)
+3. [API Features Class Methods / متدهای کلاس API Features](#api-features-class-methods)
+   - [filter() / فیلتر](#filter)
+   - [sort() / مرتب‌سازی](#sort)
+   - [limitFields() / انتخاب فیلدها](#limitfields)
+   - [paginate() / صفحه‌بندی](#paginate)
+   - [populate() / پرکردن (Populate)](#populate)
+   - [addManualFilters() / فیلترهای دستی](#addmanualfilters)
+   - [execute() / اجرا](#execute)
+4. [Input Types & Supported Operators / انواع ورودی و اپراتورهای پشتیبانی‌شده](#input-types--supported-operators)
+5. [Additional Conditions / شرایط اضافی](#additional-conditions)
+6. [Security Configuration / تنظیمات امنیتی](#security-configuration)
+7. [Full Examples / مثال‌های کامل](#full-examples)
+8. [Summary / جمع‌بندی](#summary)
 
 ---
 
-## Installation & Setup / نصب و راه‌اندازی
+## English Version
 
-### Prerequisites / پیش‌نیازها
-- Node.js 16+
-- MongoDB 5+
-- Mongoose 7+
+### Installation & Setup
+- **Prerequisites:** Node.js 16+, MongoDB 5+, Mongoose 7+  
+- **Install Dependencies:**
+  ```bash
+  npm install mongoose lodash dotenv
+  ```
 
-### Install Dependencies / نصب کتابخانه‌ها
-```bash
-npm install mongoose lodash dotenv
-```
+### Overview
+The **ApiFeatures** class processes incoming query parameters and builds an aggregation pipeline step by step. It supports:
+- Advanced filtering, sorting, and field selection
+- Pagination with default values (defaults to page 1 and limit 10 if not provided)
+- Population of related documents including support for nested population
+- Automatic application of conditions such as `isActive: true` if the field exists (for non-admin users)
+- Input sanitization, numeric validation, and security enforcement (via `securityConfig`)
 
+### API Features Class Methods
 
-## Overview / معرفی
-
-The **ApiFeatures** class processes incoming query parameters and builds an aggregation pipeline step by step. It supports advanced filtering, sorting, field selection, pagination, and population of related documents. It also enforces conditions—such as automatically applying an `isActive: true` filter if the schema supports it (and the user is not an admin), using default pagination values (page 1 and limit 10 if not provided), and more.  
-کلاس **ApiFeatures** پارامترهای ورودی را پردازش کرده و به‌صورت مرحله‌ای Pipeline Aggregation را می‌سازد. این کلاس از فیلترینگ پیشرفته، مرتب‌سازی، انتخاب فیلد، صفحه‌بندی و پرکردن اسناد مرتبط پشتیبانی می‌کند. همچنین شرایطی مانند اعمال خودکار شرط `isActive: true` در صورت وجود آن (و نبود نقش admin)، استفاده از مقادیر پیش‌فرض صفحه (صفحه ۱ و محدودیت ۱۰ در صورت عدم ارسال) و سایر شرایط را اجرا می‌کند.
-
----
-
-## API Features Class Methods / متدهای کلاس API Features
-
-### filter() / فیلتر
-- **Description / توضیح:**  
-  Parses the query parameters, merges them with any manually added filters, and applies security filters. Notably, if the model schema includes an `isActive` field and the current user role is not "admin," it adds a condition to return only active documents.  
-  این متد پارامترهای کوئری را تجزیه کرده، فیلترهای دستی را ترکیب می‌کند و سپس فیلترهای امنیتی را اعمال می‌کند. نکته مهم اینکه اگر اسکیما دارای فیلد `isActive` باشد و نقش کاربری "admin" نباشد، شرط `isActive: true` به کوئری اضافه می‌شود.
-
-- **Usage Example / مثال استفاده:**
+#### filter()
+- **Description:**  
+  Parses query parameters, merges them with manually added filters (if provided), and applies security filters. If the model schema includes an `isActive` field and the user is not "admin," it auto-adds `isActive: true`.
+- **Usage Example:**
   ```javascript
   // URL: /api/products?status=active&price[gte]=100
   const features = new ApiFeatures(Product, req.query);
@@ -61,14 +57,10 @@ The **ApiFeatures** class processes incoming query parameters and builds an aggr
   // Pipeline adds: { $match: { status: "active", price: { $gte: 100 }, isActive: true } }
   ```
 
----
-
-### sort() / مرتب‌سازی
-- **Description / توضیح:**  
-  Converts a comma-separated list of sorting fields into a `$sort` object. A preceding "-" indicates descending order.  
-  رشته‌ای از فیلدهای مرتب‌سازی را به شیء `$sort` تبدیل می‌کند. اگر فیلد با "-" شروع شود، ترتیب نزولی در نظر گرفته می‌شود.
-
-- **Usage Example / مثال استفاده:**
+#### sort()
+- **Description:**  
+  Converts a comma-separated list of sorting fields into a `$sort` object. A "-" before a field indicates descending order.
+- **Usage Example:**
   ```javascript
   // URL: /api/products?sort=-price,createdAt
   const features = new ApiFeatures(Product, req.query);
@@ -76,14 +68,10 @@ The **ApiFeatures** class processes incoming query parameters and builds an aggr
   // Pipeline adds: { $sort: { price: -1, createdAt: 1 } }
   ```
 
----
-
-### limitFields() / انتخاب فیلدها
-- **Description / توضیح:**  
-  Uses `$project` to include only the fields specified in the query while automatically removing forbidden fields (e.g., "password").  
-  از `$project` برای نمایش تنها فیلدهای انتخاب‌شده استفاده می‌کند و فیلدهای ممنوعی مانند `password` را حذف می‌کند.
-
-- **Usage Example / مثال استفاده:**
+#### limitFields()
+- **Description:**  
+  Uses `$project` to return only the specified fields, excluding forbidden fields (e.g., "password").
+- **Usage Example:**
   ```javascript
   // URL: /api/products?fields=name,price,category,password
   const features = new ApiFeatures(Product, req.query);
@@ -91,101 +79,62 @@ The **ApiFeatures** class processes incoming query parameters and builds an aggr
   // Pipeline adds: { $project: { name: 1, price: 1, category: 1 } }
   ```
 
----
-
-### paginate() / صفحه‌بندی
-- **Description / توضیح:**  
-  Applies pagination by determining the page number and limit. If the `page` or `limit` parameters are not provided, defaults to page 1 and limit 10. The maximum limit is determined by the user's access level from the security configuration.  
-  با تعیین شماره صفحه و تعداد آیتم‌ها، صفحه‌بندی را اعمال می‌کند. در صورت عدم ارسال `page` یا `limit`، به طور پیش‌فرض صفحه ۱ و محدودیت ۱۰ آیتم اعمال می‌شود. محدودیت حداکثر بر اساس سطح دسترسی کاربر تعیین می‌شود.
-
-- **Usage Example / مثال استفاده:**
+#### paginate()
+- **Description:**  
+  Applies pagination by determining the page and limit. Defaults to page 1 and limit 10 if not provided. The max limit is based on the user's role (configured in `securityConfig`).
+- **Usage Example:**
   ```javascript
   // URL: /api/products?page=2&limit=20
   const features = new ApiFeatures(Product, req.query, "user");
   features.paginate();
-  // Pipeline adds: { $skip: 20 } and { $limit: 20 } (or adjusted by user role)
+  // Pipeline adds: { $skip: 20 } and { $limit: 20 }
   ```
 
----
+#### populate()
+- **Description:**  
+  Joins related documents using `$lookup` and `$unwind`. It supports:
+  - **String Input:** A comma-separated list of field names.
+  - **Object Input:** An object with `path` (required) and `select` (optional).
+  - **Array Input:** An array of strings or objects for multiple or nested populates.
+- **Usage Examples:**
+  - **String Input:**
+    ```javascript
+    // URL: /api/products?populate=category,brand
+    const features = new ApiFeatures(Product, req.query);
+    features.populate();
+    // Adds lookup for "category" and "brand"
+    ```
+  - **Object Input:**
+    ```javascript
+    const populateOptions = { path: "category", select: "name description" };
+    const features = new ApiFeatures(Product, req.query);
+    features.populate(populateOptions);
+    ```
+  - **Array Input:**
+    ```javascript
+    const populateArray = [
+      "brand",  // simple string
+      { path: "category", select: "name description" },
+      { path: "category", select: "name", populate: { path: "subCategory", select: "title" } }
+    ];
+    const features = new ApiFeatures(Product, req.query, "admin");
+    features.populate(populateArray);
+    ```
 
-### populate() / پرکردن (Populate)
-- **Description / توضیح:**  
-  Joins related documents using MongoDB’s `$lookup` and `$unwind` operators. Supports various input types:
-  - **String Input:** A comma-separated string of field names.
-  - **Object Input:** An object with `path` (mandatory) and `select` (optional) properties.
-  - **Array Input:** An array containing strings or objects for multiple or nested populate operations.
-  
-  از `$lookup` و `$unwind` برای اتصال اسناد مرتبط استفاده می‌کند. ورودی‌های پشتیبانی شده شامل:
-  - **ورودی رشته‌ای:** رشته‌ای جداشده با کاما از نام فیلدها.
-  - **ورودی شیئی:** شیئی با کلیدهای `path` (الزامی) و `select` (اختیاری).
-  - **ورودی آرایه‌ای:** آرایه‌ای از رشته‌ها یا اشیاء جهت پرکردن چندگانه یا تو در تو.
-
-- **Usage Examples / مثال‌های استفاده:**
-
-  **Simple String Input / ورودی رشته‌ای:**
-  ```javascript
-  // URL: /api/products?populate=category,brand
-  const features = new ApiFeatures(Product, req.query);
-  features.populate();
-  // Pipeline adds $lookup and $unwind stages for "category" and "brand"
-  ```
-
-  **Object Input / ورودی شیئی:**
-  ```javascript
-  const populateOptions = {
-    path: "category",
-    select: "name description"
-  };
-  const features = new ApiFeatures(Product, req.query);
-  features.populate(populateOptions);
-  // Joins the "category" collection and returns only "name" and "description"
-  ```
-
-  **Array Input / ورودی آرایه‌ای:**
-  ```javascript
-  const populateArray = [
-    "brand",  // Simple string
-    {         // Object with select projection
-      path: "category",
-      select: "name description"
-    },
-    {         // Nested populate: "category" with nested "subCategory"
-      path: "category",
-      select: "name",
-      populate: {
-        path: "subCategory",
-        select: "title"
-      }
-    }
-  ];
-  const features = new ApiFeatures(Product, req.query, "admin");
-  features.populate(populateArray);
-  // Pipeline processes each populate option accordingly.
-  ```
-
----
-
-### addManualFilters() / فیلترهای دستی
-- **Description / توضیح:**  
-  Merges additional filters provided manually with filters parsed from the query parameters. **Note:** If using this method, it is recommended to call `addManualFilters()` **before** calling `filter()` so that manual filters are included in the processed query.  
-  فیلترهای اضافی دستی را با فیلترهای استخراج‌شده از کوئری ترکیب می‌کند. **توجه:** در صورتی که از این متد استفاده می‌کنید، توصیه می‌شود که `addManualFilters()` قبل از فراخوانی `filter()` صدا زده شود تا فیلترهای دستی در کوئری اعمال شوند.
-
-- **Usage Example / مثال استفاده:**
+#### addManualFilters()
+- **Description:**  
+  Merges additional filters with those parsed from the query. **Note:** Call `addManualFilters()` before `filter()` so that manual filters are included.
+- **Usage Example:**
   ```javascript
   const manualFilter = { category: "electronics" };
   const features = new ApiFeatures(Product, { status: "active" });
   features.addManualFilters(manualFilter).filter();
-  // Combines "active" status with manual filter for electronics.
   ```
 
----
-
-### execute() / اجرا
-- **Description / توضیح:**  
-  Executes the aggregation pipeline built by previous methods using Mongoose's aggregation features. It concurrently runs both a count pipeline and a data pipeline and returns the total count along with the result data.  
-  Pipeline ساخته‌شده را با استفاده از aggregation mongoose اجرا کرده و همزمان pipeline‌های شمارش و داده را اجرا می‌کند؛ سپس تعداد کل و داده‌های خروجی را برمی‌گرداند.
-
-- **Usage Example / مثال استفاده:**
+#### execute()
+- **Description:**  
+  Executes the aggregation pipeline using Mongoose and returns an object containing a success flag, total count, and result data.
+- **Usage Example:**
   ```javascript
   const features = new ApiFeatures(Product, req.query);
   const result = await features
@@ -195,116 +144,72 @@ The **ApiFeatures** class processes incoming query parameters and builds an aggr
     .paginate()
     .populate()
     .execute();
-  
   console.log(result);
-  // Returns: { success: true, count: <total>, data: [ ...documents ] }
   ```
 
----
+### Input Types & Supported Operators
 
-## Input Types & Supported Operators / انواع ورودی و اپراتورهای پشتیبانی‌شده
+#### Filtering Operators
+The class converts query parameters into MongoDB operators:
+| Operator | Example Query            | Description                |
+|----------|--------------------------|----------------------------|
+| eq       | `?age=25`                | Equal to                   |
+| ne       | `?status[ne]=inactive`   | Not equal to               |
+| gt       | `?price[gt]=100`         | Greater than               |
+| gte      | `?stock[gte]=50`         | Greater than or equal to   |
+| lt       | `?weight[lt]=500`        | Less than                  |
+| lte      | `?rating[lte]=3`         | Less than or equal to      |
+| in       | `?colors[in]=red,blue`   | In the list                |
+| nin      | `?size[nin]=xl`          | Not in the list            |
+| regex    | `?name[regex]=^A`        | Regex search               |
+| exists   | `?discount[exists]=true` | Field existence            |
 
-### Filtering Operators / اپراتورهای فیلترینگ
-The class transforms query parameters into MongoDB operators as follows:  
-این کلاس پارامترهای ورودی را به اپراتورهای MongoDB تبدیل می‌کند:
+#### Sorting, Projection, Pagination
+- **Sorting:** Uses `$sort`  
+- **Projection:** Uses `$project`  
+- **Pagination:** Uses `$skip` and `$limit` (defaults to page 1 and limit 10)
 
-| Operator | Example Query            | Description / توضیح          |
-|----------|--------------------------|-----------------------------|
-| eq       | `?age=25`                | Equal to / برابر با         |
-| ne       | `?status[ne]=inactive`   | Not equal to / نابرابر با    |
-| gt       | `?price[gt]=100`         | Greater than / بزرگتر از     |
-| gte      | `?stock[gte]=50`         | Greater than or equal to / بزرگتر یا مساوی |
-| lt       | `?weight[lt]=500`        | Less than / کوچکتر از        |
-| lte      | `?rating[lte]=3`         | Less than or equal to / کوچکتر یا مساوی |
-| in       | `?colors[in]=red,blue`   | Exists in the list / موجود در لیست |
-| nin      | `?size[nin]=xl`          | Not in the list / عدم موجودیت در لیست |
-| regex    | `?name[regex]=^A`        | Regex search / جستجو با Regex |
-| exists   | `?discount[exists]=true` | Field existence / وجود فیلد   |
+#### Populate Input Variations
+- **String:** e.g., `"category,brand"`  
+- **Object:** e.g., `{ path: "category", select: "name description" }`  
+- **Array:** e.g., `["brand", { path: "category", select: "name" }, ...]`
 
-### Sorting, Projection, Pagination / مرتب‌سازی، انتخاب فیلد و صفحه‌بندی
-- **Sorting:** Uses `$sort` to order results.  
-  **مرتب‌سازی:** استفاده از `$sort` برای ترتیب نتایج.
-- **Projection:** Uses `$project` to include only allowed fields.  
-  **انتخاب فیلد:** استفاده از `$project` برای بازگرداندن فقط فیلدهای مجاز.
-- **Pagination:** Uses `$skip` and `$limit`; defaults to page 1 and limit 10 if not provided.  
-  **صفحه‌بندی:** استفاده از `$skip` و `$limit`؛ در صورت عدم ارسال پارامتر، صفحه ۱ و محدودیت ۱۰ به‌طور پیش‌فرض اعمال می‌شود.
-
-### Populate Input Variations / انواع ورودی برای Populate
-- **String:** A comma-separated list (e.g., `"category,brand"`).  
-  **رشته‌ای:** لیستی از نام فیلدها که با کاما جدا شده‌اند.
-- **Object:** An object with keys `path` (required) and `select` (optional).  
-  **شیئی:** شیئی با کلید `path` (الزامی) و `select` (اختیاری).
-- **Array:** An array containing strings or objects for multiple or nested populate setups.  
-  **آرایه‌ای:** آرایه‌ای از رشته‌ها یا اشیاء برای پیکربندی پرکردن چندگانه یا تو در تو.
-
----
-
-## Additional Conditions / شرایط اضافی
-
+### Additional Conditions
 - **isActive Condition:**  
-  If the model schema includes an `isActive` field and the current user role is not "admin," the `filter()` method automatically adds `isActive: true` to the query.  
-  **شرط isActive:** اگر در اسکیما فیلد `isActive` وجود داشته باشد و نقش کاربری "admin" نباشد، متد `filter()` به‌طور خودکار شرط `isActive: true` را به کوئری اضافه می‌کند.
-
+  If the model includes an `isActive` field and the user is not admin, `filter()` auto-adds `isActive: true`.
 - **Default Pagination:**  
-  If `page` or `limit` are not specified in the query, defaults are applied—page 1 and limit 10 items. These defaults can be overridden based on the user's role settings in the security configuration.  
-  **صفحه‌بندی پیش‌فرض:** در صورت عدم ارسال مقادیر `page` یا `limit`، به طور پیش‌فرض صفحه ۱ و تعداد ۱۰ آیتم اعمال می‌شود. این مقدار پیش‌فرض بر اساس تنظیمات سطوح دسترسی قابل تغییر است.
-
+  If no `page` or `limit` are provided, defaults are used (page 1, limit 10), adjusted based on user role.
 - **Numeric Validation:**  
-  The constructor ensures that `page` and `limit` (and similar numeric fields) contain only numeric values.  
-  **اعتبارسنجی عددی:** سازنده اطمینان حاصل می‌کند که مقادیر `page` و `limit` تنها شامل اعداد باشند.
-
+  Validates that fields such as `page` and `limit` contain only numbers.
 - **Removal of Dangerous Operators:**  
-  The `#initialSanitization()` method removes operators such as `$where`, `$accumulator`, and `$function` from queries to prevent injection attacks.  
-  **حذف اپراتورهای خطرناک:** متد `#initialSanitization()` اپراتورهایی مانند `$where`، `$accumulator` و `$function` را از ورودی حذف می‌کند تا از حملات تزریقی جلوگیری شود.
-
+  Operators like `$where`, `$accumulator`, and `$function` are removed from the query.
 - **Ordering of Manual Filters:**  
-  When using manual filters via `addManualFilters()`, it is recommended that this method be called before calling `filter()` so that the manual filters are included properly in the query.  
-  **ترتیب استفاده از فیلترهای دستی:** در صورت استفاده از `addManualFilters()`، توصیه می‌شود این متد قبل از فراخوانی `filter()` صدا زده شود تا فیلترهای دستی به درستی در کوئری وارد شوند.
+  Call `addManualFilters()` before `filter()` to ensure manual filters are properly merged.
 
----
-
-## Security Configuration / تنظیمات امنیتی
-
-The security configuration enforces restrictions on operators, forbidden fields, and role-based limits.  
-تنظیمات امنیتی محدودیت‌های اپراتور، حذف فیلدهای ممنوع و محدودیت‌های مبتنی بر نقش را اعمال می‌کند.
-
+### Security Configuration
+Security settings are used to enforce:
+- Allowed operators  
+- Forbidden fields (e.g., `"password"`)
+- Role-based access limits (maxLimit and allowedPopulate)
+  
 ```javascript
 export const securityConfig = {
   allowedOperators: [
-    "eq", "ne", "gt", "gte",
-    "lt", "lte", "in", "nin",
-    "regex", "exists", "size", "or", "and"
+    "eq", "ne", "gt", "gte", "lt", "lte", "in", "nin", "regex", "exists", "size", "or", "and"
   ],
   forbiddenFields: ["password"],
   accessLevels: {
-    guest: {
-      maxLimit: 50,
-      allowedPopulate: ["*"]
-    },
-    user: {
-      maxLimit: 100,
-      allowedPopulate: ["*"]
-    },
-    admin: {
-      maxLimit: 1000,
-      allowedPopulate: ["*"]
-    },
-    superAdmin: {
-      maxLimit: 1000,
-      allowedPopulate: ["*"]
-    }
+    guest: { maxLimit: 50, allowedPopulate: ["*"] },
+    user: { maxLimit: 100, allowedPopulate: ["*"] },
+    admin: { maxLimit: 1000, allowedPopulate: ["*"] },
+    superAdmin: { maxLimit: 1000, allowedPopulate: ["*"] }
   }
 };
 ```
 
-These settings are automatically used in methods like `filter()`, `paginate()`, and `limitFields()` to protect queries.  
-این تنظیمات به طور خودکار در متدهایی مانند `filter()`، `paginate()` و `limitFields()` برای حفاظت از کوئری‌ها استفاده می‌شوند.
+### Full Examples
 
----
-
-## Full Examples / مثال‌های کامل
-
-### Example 1: Basic Query  
+#### Example 1: Basic Query
 ```javascript
 import { ApiFeatures } from "./api-features.js";
 import Product from "./models/product.js";
@@ -312,17 +217,17 @@ import Product from "./models/product.js";
 // URL: /api/products?status=active&price[gte]=100&sort=-price,createdAt&fields=name,price,category&page=1&limit=10&populate=category,brand
 const features = new ApiFeatures(Product, req.query, "user");
 const result = await features
-  .filter()      
-  .sort()        
-  .limitFields() 
-  .paginate()    
-  .populate()    
+  .filter()
+  .sort()
+  .limitFields()
+  .paginate()
+  .populate()
   .execute();
-
 console.log(result);
 ```
 
-### Example 2: Query with Manual Filters (Call addManualFilters Before filter)  
+#### Example 2: Query with Manual Filters  
+*(Call `addManualFilters()` before `filter()`)*  
 ```javascript
 const query = { status: "active" };
 const manualFilter = { category: "electronics" };
@@ -332,7 +237,7 @@ const result = await features.execute();
 console.log(result);
 ```
 
-### Example 3: Advanced Nested Populate with Array Input  
+#### Example 3: Advanced Nested Populate with Array Input
 ```javascript
 const populateArray = [
   "brand",  // Simple string input
@@ -340,7 +245,7 @@ const populateArray = [
     path: "category",
     select: "name description"
   },
-  {         // Nested populate: populate "category" and then its "subCategory"
+  {         // Nested populate: populate "category" then its "subCategory"
     path: "category",
     select: "name",
     populate: {
@@ -354,7 +259,7 @@ const result = await features.populate(populateArray).execute();
 console.log(result);
 ```
 
-### Example 4: Full Advanced Query Example  
+#### Example 4: Full Advanced Query Example
 ```http
 GET /api/products?
   page=1&
@@ -367,38 +272,295 @@ GET /api/products?
   name[regex]=^Samsung
 ```
 
+#### Example 5: Using Default Pagination (when page and limit are not provided)
+```javascript
+// URL: /api/products?status=active
+const features = new ApiFeatures(Product, req.query);
+const result = await features
+  .filter()      // will use default page = 1, limit = 10
+  .execute();
+console.log(result);
+```
+
 ---
 
-## Summary / جمع‌بندی
+## Summary
 
-- **Filtering / فیلترینگ:**  
-  Uses `$match` to combine query filters, manual filters, and the security condition `isActive: true` (if applicable).  
-  **اعمال `$match` برای ترکیب فیلترهای کوئری، فیلترهای دستی و شرط isActive (در صورت وجود).**
+- **Filtering:**  
+  Uses `$match` to apply combined query filters, manual filters, and condition `isActive: true` (for non-admin users).  
+- **Sorting:**  
+  Converts a comma-separated string into a `$sort` object.
+- **Field Selection:**  
+  Uses `$project` to include only permitted fields.
+- **Pagination:**  
+  Applies `$skip` and `$limit` with default values (page 1, limit 10) if not provided; max limits are based on user role.
+- **Populate:**  
+  Uses `$lookup` and `$unwind` to join related documents. Accepts string, object, and array inputs (supports nested population).
+- **Security:**  
+  Enforces allowed operators, input sanitization, numeric validation, removal of dangerous operators, and role-based restrictions via `securityConfig`.
+- **Ordering of Manual Filters:**  
+  Manual filters must be added using `addManualFilters()` **before** calling `filter()` to ensure they are correctly merged.
 
-- **Sorting / مرتب‌سازی:**  
-  Parses a comma-separated string into a `$sort` object.  
-  **تبدیل رشته ورودی به شیء `$sort` جهت مرتب‌سازی.**
+This class is a one-stop solution for integrating powerful, secure, and customizable query functionalities into any Node.js/MongoDB project.  
+این کلاس یک راهکار جامع برای ادغام قابلیت‌های قدرتمند، امن و قابل سفارشی‌سازی در هر پروژه Node.js/MongoDB ارائه می‌دهد.
 
-- **Field Selection / انتخاب فیلد:**  
-  Uses `$project` to return only permitted fields while removing forbidden ones.  
-  **استفاده از `$project` برای بازگرداندن تنها فیلدهای مجاز.**
+---
 
-- **Pagination / صفحه‌بندی:**  
-  Applies `$skip` and `$limit`, defaulting to page 1 and limit 10 if not provided, with role-based restrictions.  
-  **استفاده از `$skip` و `$limit`؛ در صورت عدم ارسال پارامتر، صفحه ۱ و محدودیت ۱۰ به طور پیش‌فرض اعمال می‌شود.**
+## فارسی
 
-- **Populate / پرکردن:**  
-  Joins related documents using `$lookup` and `$unwind`. Supports string, object, and array inputs (including nested population).  
-  **استفاده از `$lookup` و `$unwind` برای اتصال اسناد مرتبط؛ پشتیبانی از ورودی‌های رشته‌ای، شیئی و آرایه‌ای شامل پرکردن تو در تو.**
+### نصب و راه‌اندازی
+- **پیش‌نیازها:** Node.js 16+، MongoDB 5+، Mongoose 7+  
+- **نصب کتابخانه‌ها:**
+  ```bash
+  npm install mongoose lodash dotenv
+  ```
 
-- **Security / امنیت:**  
-  Enforces allowed operators, input sanitization, numeric validation, forbidden field removal, and role-based access rules via `securityConfig`.  
-  **اجرای اپراتورهای مجاز، پاکسازی ورودی، اعتبارسنجی عددی، حذف فیلدهای ممنوع و قوانین دسترسی مبتنی بر نقش از طریق securityConfig.**
+### معرفی
+کلاس **ApiFeatures** پارامترهای ورودی را پردازش کرده و به صورت مرحله به مرحله یک Pipeline Aggregation می‌سازد. این کلاس از فیلترینگ پیشرفته، مرتب‌سازی، انتخاب فیلد، صفحه‌بندی و پرکردن اسناد مرتبط پشتیبانی می‌کند. همچنین شروطی نظیر افزودن خودکار شرط `isActive: true` در صورت وجود فیلد (برای کاربران غیرadmin) و استفاده از مقادیر پیش‌فرض صفحه‌بندی (صفحه 1 و محدودیت 10 در صورت عدم ارسال) را اعمال می‌کند.
 
-- **Ordering Manual Filters / ترتیب استفاده از فیلترهای دستی:**  
-  When using manual filters, call `addManualFilters()` before `filter()` to ensure they are properly included in the query.  
-  **در صورت استفاده از فیلترهای دستی، ابتدا `addManualFilters()` را فراخوانی کرده و سپس `filter()` را اجرا کنید.**
+### متدهای کلاس API Features
 
-This class is designed as a one-stop solution for integrating powerful and secure query functionalities into any Node.js/MongoDB project.  
-این کلاس به عنوان یک راهکار یکپارچه برای پیاده‌سازی قابلیت‌های قدرتمند و امن در هر پروژه Node.js/MongoDB به کار می‌رود.
+#### filter() / فیلتر
+- **توضیح:**  
+  پارامترهای کوئری را تجزیه کرده، آن‌ها را با فیلترهای دستی (در صورت استفاده) ترکیب می‌کند و سپس فیلترهای امنیتی را اعمال می‌کند. اگر فیلد `isActive` در اسکیما وجود داشته باشد و کاربر admin نباشد، شرط `isActive: true` نیز اضافه می‌شود.
+- **مثال استفاده:**
+  ```javascript
+  // URL: /api/products?status=active&price[gte]=100
+  const features = new ApiFeatures(Product, req.query);
+  features.filter();
+  // به Pipeline اضافه می‌کند: { $match: { status: "active", price: { $gte: 100 }, isActive: true } }
+  ```
+
+#### sort() / مرتب‌سازی
+- **توضیح:**  
+  رشته‌ای از فیلدهای مرتب‌سازی را دریافت کرده و به شیء `$sort` تبدیل می‌کند. اگر فیلد با "-" شروع شود، ترتیب نزولی است.
+- **مثال استفاده:**
+  ```javascript
+  // URL: /api/products?sort=-price,createdAt
+  const features = new ApiFeatures(Product, req.query);
+  features.sort();
+  // به Pipeline اضافه می‌کند: { $sort: { price: -1, createdAt: 1 } }
+  ```
+
+#### limitFields() / انتخاب فیلدها
+- **توضیح:**  
+  تنها فیلدهای مشخص شده را برمی‌گرداند و فیلدهای ممنوع نظیر `password` را حذف می‌کند. از `$project` استفاده می‌کند.
+- **مثال استفاده:**
+  ```javascript
+  // URL: /api/products?fields=name,price,category,password
+  const features = new ApiFeatures(Product, req.query);
+  features.limitFields();
+  // به Pipeline اضافه می‌کند: { $project: { name: 1, price: 1, category: 1 } }
+  ```
+
+#### paginate() / صفحه‌بندی
+- **توضیح:**  
+  شماره صفحه و تعداد آیتم‌ها را دریافت کرده و با استفاده از `$skip` و `$limit` صفحه‌بندی می‌کند. در صورت عدم ارسال `page` و `limit`، پیش‌فرض صفحه ۱ و تعداد ۱۰ آیتم اعمال می‌شود.
+- **مثال استفاده:**
+  ```javascript
+  // URL: /api/products?page=2&limit=20
+  const features = new ApiFeatures(Product, req.query, "user");
+  features.paginate();
+  // به Pipeline اضافه می‌کند: { $skip: 20 } و { $limit: 20 }
+  ```
+
+#### populate() / پرکردن (Populate)
+- **توضیح:**  
+  با استفاده از `$lookup` و `$unwind`، اسناد مرتبط را به سند اصلی متصل می‌کند. این متد ورودی‌های مختلفی را پشتیبانی می‌کند:
+  - **ورودی رشته‌ای:** فهرستی از نام فیلدها به صورت جداشده با کاما.
+  - **ورودی شیئی:** شیئی حاوی کلید `path` (الزامی) و اختیاری `select`.
+  - **ورودی آرایه‌ای:** آرایه‌ای از رشته‌ها یا اشیاء برای پرکردن چندگانه یا تو در تو.
+- **مثال‌های استفاده:**
+  - **ورودی رشته‌ای ساده:**
+    ```javascript
+    // URL: /api/products?populate=category,brand
+    const features = new ApiFeatures(Product, req.query);
+    features.populate();
+    // به Pipeline، مراحل $lookup و $unwind برای "category" و "brand" اضافه می‌شود.
+    ```
+  - **ورودی شیئی:**
+    ```javascript
+    const populateOptions = { path: "category", select: "name description" };
+    const features = new ApiFeatures(Product, req.query);
+    features.populate(populateOptions);
+    // کلکسیون "category" پیوست شده و تنها فیلدهای "name" و "description" برمی‌گردد.
+    ```
+  - **ورودی آرایه‌ای:**
+    ```javascript
+    const populateArray = [
+      "brand",  // ورودی ساده رشته‌ای
+      { path: "category", select: "name description" },
+      { path: "category", select: "name", populate: { path: "subCategory", select: "title" } }
+    ];
+    const features = new ApiFeatures(Product, req.query, "admin");
+    features.populate(populateArray);
+    // هر ورودی آرایه‌ای به درستی پردازش می‌شود.
+    ```
+
+#### addManualFilters() / فیلترهای دستی
+- **توضیح:**  
+  فیلترهای دستی اضافه شده را با فیلترهای استخراج‌شده از کوئری ترکیب می‌کند.  
+  **توجه:** ابتدا متد `addManualFilters()` را فراخوانی کنید و سپس `filter()` را اجرا نمایید تا فیلترهای دستی در کوئری لحاظ شوند.
+- **مثال استفاده:**
+  ```javascript
+  const manualFilter = { category: "electronics" };
+  const features = new ApiFeatures(Product, { status: "active" });
+  features.addManualFilters(manualFilter).filter();
+  ```
+
+#### execute() / اجرا
+- **توضیح:**  
+  Pipeline ساخته‌شده را با استفاده از aggregation mongoose اجرا می‌کند و به صورت همزمان pipeline‌های شمارش و داده را اجرا کرده و نتیجه شامل تعداد کل و داده‌های استخراج‌شده را برمی‌گرداند.
+- **مثال استفاده:**
+  ```javascript
+  const features = new ApiFeatures(Product, req.query);
+  const result = await features
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate()
+    .populate()
+    .execute();
+  console.log(result);
+  ```
+
+#### انواع ورودی و اپراتورهای پشتیبانی‌شده
+- **اپراتورهای فیلترینگ:**  
+  اپراتورهایی مانند eq، ne، gt، gte، lt، lte، in، nin، regex، و exists مورد استفاده قرار می‌گیرند.
+- **مرتب‌سازی، انتخاب فیلد، صفحه‌بندی:**  
+  از `$sort`، `$project`، `$skip` و `$limit` استفاده می‌شود.
+- **ورودی Populate:**  
+  ورودی می‌تواند رشته‌ای (مثلاً "category,brand")، شیئی (مانند `{ path: "category", select: "name description" }`) یا آرایه‌ای از این موارد باشد.
+
+---
+
+### شرایط اضافی
+- **شرط isActive:**  
+  در صورت وجود فیلد `isActive` در اسکیما و نبود نقش admin، شرط `isActive: true` به کوئری اضافه می‌شود.
+- **صفحه‌بندی پیش‌فرض:**  
+  اگر پارامترهای `page` و `limit` ارسال نشوند، به صورت پیش‌فرض صفحه ۱ و تعداد ۱۰ آیتم اعمال می‌شود.
+- **اعتبارسنجی عددی:**  
+  مطمئن می‌شود که فیلدهایی نظیر `page` و `limit` تنها شامل اعداد هستند.
+- **حذف اپراتورهای خطرناک:**  
+  اپراتورهایی مانند `$where`، `$accumulator` و `$function` از ورودی حذف می‌شوند.
+- **ترتیب استفاده از فیلترهای دستی:**  
+  در صورت استفاده از `addManualFilters()`، ابتدا آن را فراخوانی کنید و سپس `filter()` را اجرا نمایید.
+
+---
+
+### تنظیمات امنیتی
+تنظیمات امنیتی شامل محدودیت‌های اپراتور، حذف فیلدهای ممنوع و محدودیت‌های مبتنی بر نقش است:
+```javascript
+export const securityConfig = {
+  allowedOperators: [
+    "eq", "ne", "gt", "gte",
+    "lt", "lte", "in", "nin",
+    "regex", "exists", "size", "or", "and"
+  ],
+  forbiddenFields: ["password"],
+  accessLevels: {
+    guest: { maxLimit: 50, allowedPopulate: ["*"] },
+    user: { maxLimit: 100, allowedPopulate: ["*"] },
+    admin: { maxLimit: 1000, allowedPopulate: ["*"] },
+    superAdmin: { maxLimit: 1000, allowedPopulate: ["*"] }
+  }
+};
+```
+این تنظیمات به‌طور خودکار در متدهایی مانند filter، paginate و limitFields استفاده می‌شوند.
+
+---
+
+### مثال‌های کامل
+
+#### مثال 1: کوئری پایه
+```javascript
+import { ApiFeatures } from "./api-features.js";
+import Product from "./models/product.js";
+
+// URL: /api/products?status=active&price[gte]=100&sort=-price,createdAt&fields=name,price,category&page=1&limit=10&populate=category,brand
+const features = new ApiFeatures(Product, req.query, "user");
+const result = await features
+  .filter()
+  .sort()
+  .limitFields()
+  .paginate()
+  .populate()
+  .execute();
+console.log(result);
+```
+
+#### مثال 2: کوئری با فیلترهای دستی  
+*(ابتدا `addManualFilters()` سپس `filter()` فراخوانی شود)*
+```javascript
+const query = { status: "active" };
+const manualFilter = { category: "electronics" };
+const features = new ApiFeatures(Product, query, "user");
+features.addManualFilters(manualFilter).filter();
+const result = await features.execute();
+console.log(result);
+```
+
+#### مثال 3: پرکردن تو در تو با ورودی آرایه‌ای
+```javascript
+const populateArray = [
+  "brand",  // ورودی رشته‌ای ساده
+  {         // ورودی شیئی با انتخاب فیلد
+    path: "category",
+    select: "name description"
+  },
+  {         // پرکردن تو در تو: "category" به همراه "subCategory"
+    path: "category",
+    select: "name",
+    populate: { path: "subCategory", select: "title" }
+  }
+];
+const features = new ApiFeatures(Product, req.query, "admin");
+const result = await features.populate(populateArray).execute();
+console.log(result);
+```
+
+#### مثال 4: کوئری پیشرفته کامل
+```http
+GET /api/products?
+  page=1&
+  limit=10&
+  sort=-createdAt,price&
+  fields=name,price,category&
+  populate=category,brand&
+  price[gte]=1000&
+  category[in]=electronics,phones&
+  name[regex]=^Samsung
+```
+
+#### مثال 5: استفاده از صفحه‌بندی پیش‌فرض (بدون ارسال page و limit)
+```javascript
+// URL: /api/products?status=active
+const features = new ApiFeatures(Product, req.query);
+const result = await features
+  .filter()      // در صورت عدم ارسال page/limit، صفحه 1 و محدودیت 10 اعمال می‌شود
+  .execute();
+console.log(result);
+```
+
+---
+
+### جمع‌بندی
+- **فیلترینگ:**  
+  از `$match` برای ترکیب فیلترهای کوئری، فیلترهای دستی و شرط `isActive: true` (در صورت وجود) استفاده می‌شود.
+- **مرتب‌سازی:**  
+  ورودی‌های جداشده با کاما به یک شیء `$sort` تبدیل می‌شود.
+- **انتخاب فیلد:**  
+  از `$project` برای بازگرداندن تنها فیلدهای مجاز استفاده می‌شود.
+- **صفحه‌بندی:**  
+  از `$skip` و `$limit` استفاده می‌شود؛ در صورت عدم ارسال پارامتر، صفحه 1 و محدودیت 10 به صورت پیش‌فرض اعمال می‌گردد.
+- **پرکردن:**  
+  از `$lookup` و `$unwind` برای اتصال اسناد مرتبط استفاده می‌شود؛ ورودی‌های رشته‌ای، شیئی و آرایه‌ای (شامل پرکردن تو در تو) پشتیبانی می‌شود.
+- **امنیت:**  
+  اپراتورهای مجاز، پاکسازی ورودی، اعتبارسنجی عددی، حذف فیلدهای ممنوع و محدودیت‌های مبتنی بر نقش از طریق تنظیمات securityConfig اجرا می‌شود.
+- **ترتیب استفاده از فیلترهای دستی:**  
+  حتماً ابتدا `addManualFilters()` را فراخوانی کنید و سپس `filter()` را اجرا نمایید.
+
+این کلاس یک راهکار جامع جهت ادغام قابلیت‌های پرس‌وجو قدرتمند و امن در هر پروژه Node.js/MongoDB می‌باشد.
+
+---
 ```
