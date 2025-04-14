@@ -1,3 +1,7 @@
+در ادامه فایل README به‌روز‌شده‌ای ارائه شده است که تغییرات و بهبودهای اضافه‌شده (مانند استفاده از winston برای لاگینگ، استفاده از aggregation cursor، بهبود مستندسازی، استفاده از middleware خطا و تنظیمات پیکربندی داینامیک) را نیز شامل می‌شود:
+
+---
+
 
 # Advanced API Features & Security Config for MongoDB
 
@@ -22,8 +26,10 @@ This repository provides a robust, feature-rich, and secure solution for buildin
 4. [Input Types & Supported Operators / انواع ورودی و اپراتورهای پشتیبانی‌شده](#input-types--supported-operators)
 5. [Additional Conditions / شرایط اضافی](#additional-conditions)
 6. [Security Configuration / تنظیمات امنیتی](#security-configuration)
-7. [Full Examples / مثال‌های کامل](#full-examples)
-8. [Summary / جمع‌بندی](#summary)
+7. [Security & Performance Enhancements / بهبودهای امنیتی و عملکردی](#security--performance-enhancements)
+8. [Error Handling Middleware / مدیریت خطا به صورت Middleware](#error-handling-middleware)
+9. [Full Examples / مثال‌های کامل](#full-examples)
+10. [Summary / جمع‌بندی](#summary)
 
 ---
 
@@ -33,16 +39,24 @@ This repository provides a robust, feature-rich, and secure solution for buildin
 - **Prerequisites:** Node.js 16+, MongoDB 5+, Mongoose 7+  
 - **Install Dependencies:**
   ```bash
-  npm install mongoose lodash dotenv
+  npm install mongoose lodash dotenv winston
+  ```
+  For testing purposes, install Jest or Mocha:
+  ```bash
+  npm install --save-dev jest
   ```
 
 ### Overview
 The **ApiFeatures** class processes incoming query parameters and builds an aggregation pipeline step by step. It supports:
-- Advanced filtering, sorting, and field selection
-- Pagination with default values (defaults to page 1 and limit 10 if not provided)
-- Population of related documents including support for nested population
-- Automatic application of conditions such as `isActive: true` if the field exists (for non-admin users)
-- Input sanitization, numeric validation, and security enforcement (via `securityConfig`)
+- Advanced filtering, sorting, and field selection.
+- Pagination with default values (defaults to page 1 and limit 10 if not provided).
+- Population of related documents including support for nested population.
+- Automatic application of conditions such as `isActive: true` if the field exists (for non-admin users).
+- Input sanitization, numeric validation, and security enforcement (via `securityConfig`).
+- **Enhanced logging** using winston and improved error handling with custom error classes.
+- **Dynamic configuration:** Security settings are maintained in a separate config file.
+- **Performance improvements:** Includes aggregation cursor support and optimized pipeline order.
+- **Error middleware:** A centralized error handling middleware (`catchError`) is provided.
 
 ### API Features Class Methods
 
@@ -120,7 +134,7 @@ The **ApiFeatures** class processes incoming query parameters and builds an aggr
     const features = new ApiFeatures(Product, req.query, "admin");
     features.populate(populateArray);
     ```
-
+  
 #### addManualFilters()
 - **Description:**  
   Merges additional filters with those parsed from the query. **Note:** Call `addManualFilters()` before `filter()` so that manual filters are included.
@@ -133,7 +147,7 @@ The **ApiFeatures** class processes incoming query parameters and builds an aggr
 
 #### execute()
 - **Description:**  
-  Executes the aggregation pipeline using Mongoose and returns an object containing a success flag, total count, and result data.
+  Executes the aggregation pipeline using Mongoose and returns an object containing a success flag, total count, and result data. Supports aggregation cursor for large datasets.
 - **Usage Example:**
   ```javascript
   const features = new ApiFeatures(Product, req.query);
@@ -206,12 +220,39 @@ export const securityConfig = {
   }
 };
 ```
+These settings are automatically applied in methods like `filter()`, `paginate()`, and `limitFields()`.
 
-### Full Examples
+---
+
+## Security & Performance Enhancements
+- **Enhanced Logging:**  
+  Uses winston to log events and errors with different levels (info, warn, error) along with timestamps and stack traces.
+- **Improved Error Handling:**  
+  Centralized error handling is done with a custom error class (**HandleERROR**) that marks errors as operational.
+- **Dynamic Configuration:**  
+  Security settings are maintained in `config.js`, allowing runtime changes without modifying core code.
+- **Performance Optimization:**  
+  Aggregation cursor support is added in `execute()` for large datasets, and pipelines are optimized by placing filtering stages at the beginning.
+
+---
+
+## Error Handling Middleware
+A dedicated error-handling middleware (`catchError`) is implemented to centralize error responses:
+```javascript
+import catchError from "./errorHandler.js";
+
+// Usage in Express.js:
+// app.use(catchError);
+```
+This middleware standardizes error responses by setting the HTTP status code and JSON error message.
+
+---
+
+## Full Examples
 
 #### Example 1: Basic Query
 ```javascript
-import { ApiFeatures } from "./api-features.js";
+import ApiFeatures from "./api-features.js";
 import Product from "./models/product.js";
 
 // URL: /api/products?status=active&price[gte]=100&sort=-price,createdAt&fields=name,price,category&page=1&limit=10&populate=category,brand
@@ -248,10 +289,7 @@ const populateArray = [
   {         // Nested populate: populate "category" then its "subCategory"
     path: "category",
     select: "name",
-    populate: {
-      path: "subCategory",
-      select: "title"
-    }
+    populate: { path: "subCategory", select: "title" }
   }
 ];
 const features = new ApiFeatures(Product, req.query, "admin");
@@ -285,24 +323,26 @@ console.log(result);
 ---
 
 ## Summary
-
 - **Filtering:**  
-  Uses `$match` to apply combined query filters, manual filters, and condition `isActive: true` (for non-admin users).  
+  Uses `$match` to apply combined query filters, manual filters, and condition `isActive: true` (for non-admin users).
 - **Sorting:**  
   Converts a comma-separated string into a `$sort` object.
 - **Field Selection:**  
-  Uses `$project` to include only permitted fields.
+  Uses `$project` to return only permitted fields.
 - **Pagination:**  
-  Applies `$skip` and `$limit` with default values (page 1, limit 10) if not provided; max limits are based on user role.
+  Applies `$skip` and `$limit` (defaults to page 1 and limit 10 if parameters are missing) with role-based max limits.
 - **Populate:**  
-  Uses `$lookup` and `$unwind` to join related documents. Accepts string, object, and array inputs (supports nested population).
+  Uses `$lookup` and `$unwind` to join related documents; supports string, object, and array inputs (including nested population).
 - **Security:**  
-  Enforces allowed operators, input sanitization, numeric validation, removal of dangerous operators, and role-based restrictions via `securityConfig`.
+  Enforces allowed operators, sanitizes inputs, validates numeric fields, and removes dangerous operators through `securityConfig`.
 - **Ordering of Manual Filters:**  
-  Manual filters must be added using `addManualFilters()` **before** calling `filter()` to ensure they are correctly merged.
+  Ensure `addManualFilters()` is called before `filter()` for proper inclusion.
+- **Enhanced Logging & Error Handling:**  
+  Advanced logging via winston and centralized error handling using a custom error class (**HandleERROR**) along with an Express middleware (`catchError`).
+- **Performance Optimizations:**  
+  Supports aggregation cursor for large datasets and optimizes aggregation pipelines for improved resource usage.
 
-This class is a one-stop solution for integrating powerful, secure, and customizable query functionalities into any Node.js/MongoDB project.  
-این کلاس یک راهکار جامع برای ادغام قابلیت‌های قدرتمند، امن و قابل سفارشی‌سازی در هر پروژه Node.js/MongoDB ارائه می‌دهد.
+This comprehensive class provides a one-stop solution for integrating powerful, secure, and customizable query capabilities into any Node.js/MongoDB project.
 
 ---
 
@@ -312,17 +352,17 @@ This class is a one-stop solution for integrating powerful, secure, and customiz
 - **پیش‌نیازها:** Node.js 16+، MongoDB 5+، Mongoose 7+  
 - **نصب کتابخانه‌ها:**
   ```bash
-  npm install mongoose lodash dotenv
+  npm install mongoose lodash dotenv winston
   ```
-
+  
 ### معرفی
-کلاس **ApiFeatures** پارامترهای ورودی را پردازش کرده و به صورت مرحله به مرحله یک Pipeline Aggregation می‌سازد. این کلاس از فیلترینگ پیشرفته، مرتب‌سازی، انتخاب فیلد، صفحه‌بندی و پرکردن اسناد مرتبط پشتیبانی می‌کند. همچنین شروطی نظیر افزودن خودکار شرط `isActive: true` در صورت وجود فیلد (برای کاربران غیرadmin) و استفاده از مقادیر پیش‌فرض صفحه‌بندی (صفحه 1 و محدودیت 10 در صورت عدم ارسال) را اعمال می‌کند.
+کلاس **ApiFeatures** پارامترهای ورودی را پردازش کرده و به صورت مرحله به مرحله یک Pipeline Aggregation می‌سازد. این کلاس از فیلترینگ پیشرفته، مرتب‌سازی، انتخاب فیلد، صفحه‌بندی و پرکردن اسناد مرتبط پشتیبانی می‌کند. همچنین شرایطی مانند افزودن خودکار شرط `isActive: true` (برای کاربران غیر admin) و استفاده از مقادیر پیش‌فرض صفحه‌بندی (صفحه 1 و تعداد 10 آیتم) را اعمال می‌کند. علاوه بر این، با استفاده از لاگینگ پیشرفته (winston)، مدیریت خطاهای متمرکز (با کلاس HandleERROR و middleware catchError) و پیکربندی داینامیک تنظیمات امنیتی، بهینه‌سازی عملکرد نیز انجام شده است.
 
 ### متدهای کلاس API Features
 
 #### filter() / فیلتر
 - **توضیح:**  
-  پارامترهای کوئری را تجزیه کرده، آن‌ها را با فیلترهای دستی (در صورت استفاده) ترکیب می‌کند و سپس فیلترهای امنیتی را اعمال می‌کند. اگر فیلد `isActive` در اسکیما وجود داشته باشد و کاربر admin نباشد، شرط `isActive: true` نیز اضافه می‌شود.
+  پارامترهای کوئری را تجزیه کرده، آن‌ها را با فیلترهای دستی ترکیب کرده و سپس فیلترهای امنیتی را اعمال می‌کند. اگر فیلد `isActive` وجود داشته باشد و کاربر admin نباشد، شرط `isActive: true` اضافه می‌شود.
 - **مثال استفاده:**
   ```javascript
   // URL: /api/products?status=active&price[gte]=100
@@ -333,7 +373,7 @@ This class is a one-stop solution for integrating powerful, secure, and customiz
 
 #### sort() / مرتب‌سازی
 - **توضیح:**  
-  رشته‌ای از فیلدهای مرتب‌سازی را دریافت کرده و به شیء `$sort` تبدیل می‌کند. اگر فیلد با "-" شروع شود، ترتیب نزولی است.
+  رشته‌ای از فیلدهای مرتب‌سازی را دریافت کرده و به شیء `$sort` تبدیل می‌کند؛ اگر فیلد با "-" شروع شود، ترتیب نزولی در نظر گرفته می‌شود.
 - **مثال استفاده:**
   ```javascript
   // URL: /api/products?sort=-price,createdAt
@@ -344,7 +384,7 @@ This class is a one-stop solution for integrating powerful, secure, and customiz
 
 #### limitFields() / انتخاب فیلدها
 - **توضیح:**  
-  تنها فیلدهای مشخص شده را برمی‌گرداند و فیلدهای ممنوع نظیر `password` را حذف می‌کند. از `$project` استفاده می‌کند.
+  از `$project` استفاده می‌کند تا تنها فیلدهای مجاز را برگرداند و فیلدهای ممنوع مانند `password` حذف شوند.
 - **مثال استفاده:**
   ```javascript
   // URL: /api/products?fields=name,price,category,password
@@ -355,7 +395,7 @@ This class is a one-stop solution for integrating powerful, secure, and customiz
 
 #### paginate() / صفحه‌بندی
 - **توضیح:**  
-  شماره صفحه و تعداد آیتم‌ها را دریافت کرده و با استفاده از `$skip` و `$limit` صفحه‌بندی می‌کند. در صورت عدم ارسال `page` و `limit`، پیش‌فرض صفحه ۱ و تعداد ۱۰ آیتم اعمال می‌شود.
+  با استفاده از `$skip` و `$limit`، صفحه‌بندی را براساس پارامترهای ورودی یا مقادیر پیش‌فرض (صفحه 1، تعداد 10 آیتم) اعمال می‌کند. محدودیت تعداد آیتم نیز بر اساس نقش کاربر تنظیم می‌شود.
 - **مثال استفاده:**
   ```javascript
   // URL: /api/products?page=2&limit=20
@@ -366,41 +406,34 @@ This class is a one-stop solution for integrating powerful, secure, and customiz
 
 #### populate() / پرکردن (Populate)
 - **توضیح:**  
-  با استفاده از `$lookup` و `$unwind`، اسناد مرتبط را به سند اصلی متصل می‌کند. این متد ورودی‌های مختلفی را پشتیبانی می‌کند:
-  - **ورودی رشته‌ای:** فهرستی از نام فیلدها به صورت جداشده با کاما.
-  - **ورودی شیئی:** شیئی حاوی کلید `path` (الزامی) و اختیاری `select`.
-  - **ورودی آرایه‌ای:** آرایه‌ای از رشته‌ها یا اشیاء برای پرکردن چندگانه یا تو در تو.
+  با استفاده از `$lookup` و `$unwind`، اسناد مرتبط را به سند اصلی متصل می‌کند. این متد از ورودی‌های مختلف مانند رشته‌ای، شیئی و آرایه‌ای (حتی تو در تو) پشتیبانی می‌کند.
 - **مثال‌های استفاده:**
-  - **ورودی رشته‌ای ساده:**
+  - **ورودی رشته‌ای:**
     ```javascript
     // URL: /api/products?populate=category,brand
     const features = new ApiFeatures(Product, req.query);
     features.populate();
-    // به Pipeline، مراحل $lookup و $unwind برای "category" و "brand" اضافه می‌شود.
     ```
   - **ورودی شیئی:**
     ```javascript
     const populateOptions = { path: "category", select: "name description" };
     const features = new ApiFeatures(Product, req.query);
     features.populate(populateOptions);
-    // کلکسیون "category" پیوست شده و تنها فیلدهای "name" و "description" برمی‌گردد.
     ```
   - **ورودی آرایه‌ای:**
     ```javascript
     const populateArray = [
-      "brand",  // ورودی ساده رشته‌ای
+      "brand", 
       { path: "category", select: "name description" },
       { path: "category", select: "name", populate: { path: "subCategory", select: "title" } }
     ];
     const features = new ApiFeatures(Product, req.query, "admin");
     features.populate(populateArray);
-    // هر ورودی آرایه‌ای به درستی پردازش می‌شود.
     ```
-
+    
 #### addManualFilters() / فیلترهای دستی
 - **توضیح:**  
-  فیلترهای دستی اضافه شده را با فیلترهای استخراج‌شده از کوئری ترکیب می‌کند.  
-  **توجه:** ابتدا متد `addManualFilters()` را فراخوانی کنید و سپس `filter()` را اجرا نمایید تا فیلترهای دستی در کوئری لحاظ شوند.
+  فیلترهای دستی اضافه‌شده را با فیلترهای استخراج شده از کوئری ترکیب می‌کند. **توجه:** ابتدا این متد را فراخوانی کنید و سپس متد filter() را اجرا نمایید.
 - **مثال استفاده:**
   ```javascript
   const manualFilter = { category: "electronics" };
@@ -410,7 +443,7 @@ This class is a one-stop solution for integrating powerful, secure, and customiz
 
 #### execute() / اجرا
 - **توضیح:**  
-  Pipeline ساخته‌شده را با استفاده از aggregation mongoose اجرا می‌کند و به صورت همزمان pipeline‌های شمارش و داده را اجرا کرده و نتیجه شامل تعداد کل و داده‌های استخراج‌شده را برمی‌گرداند.
+  Pipeline ساخته‌شده را با استفاده از Mongoose اجرا می‌کند و نتیجه شامل تعداد کل و داده‌های استخراج‌شده را برمی‌گرداند. در صورت نیاز از aggregation cursor جهت پردازش بهینه داده‌های حجیم استفاده می‌کند.
 - **مثال استفاده:**
   ```javascript
   const features = new ApiFeatures(Product, req.query);
@@ -425,26 +458,18 @@ This class is a one-stop solution for integrating powerful, secure, and customiz
   ```
 
 #### انواع ورودی و اپراتورهای پشتیبانی‌شده
-- **اپراتورهای فیلترینگ:**  
-  اپراتورهایی مانند eq، ne، gt، gte، lt، lte، in، nin، regex، و exists مورد استفاده قرار می‌گیرند.
-- **مرتب‌سازی، انتخاب فیلد، صفحه‌بندی:**  
-  از `$sort`، `$project`، `$skip` و `$limit` استفاده می‌شود.
-- **ورودی Populate:**  
-  ورودی می‌تواند رشته‌ای (مثلاً "category,brand")، شیئی (مانند `{ path: "category", select: "name description" }`) یا آرایه‌ای از این موارد باشد.
+- **اپراتورهای فیلترینگ:** مانند eq، ne، gt، gte، lt، lte، in، nin، regex و exists.
+- **مرتب‌سازی، انتخاب فیلد و صفحه‌بندی:** با استفاده از `$sort`، `$project`، `$skip` و `$limit`.
+- **ورودی Populate:** ورودی به صورت رشته‌ای (به عنوان مثال "category,brand")، شیئی یا آرایه‌ای امکان‌پذیر است.
 
 ---
 
 ### شرایط اضافی
-- **شرط isActive:**  
-  در صورت وجود فیلد `isActive` در اسکیما و نبود نقش admin، شرط `isActive: true` به کوئری اضافه می‌شود.
-- **صفحه‌بندی پیش‌فرض:**  
-  اگر پارامترهای `page` و `limit` ارسال نشوند، به صورت پیش‌فرض صفحه ۱ و تعداد ۱۰ آیتم اعمال می‌شود.
-- **اعتبارسنجی عددی:**  
-  مطمئن می‌شود که فیلدهایی نظیر `page` و `limit` تنها شامل اعداد هستند.
-- **حذف اپراتورهای خطرناک:**  
-  اپراتورهایی مانند `$where`، `$accumulator` و `$function` از ورودی حذف می‌شوند.
-- **ترتیب استفاده از فیلترهای دستی:**  
-  در صورت استفاده از `addManualFilters()`، ابتدا آن را فراخوانی کنید و سپس `filter()` را اجرا نمایید.
+- **شرط isActive:** در صورت وجود فیلد `isActive` در اسکیما و عدم وجود نقش admin، شرط `isActive: true` به کوئری اضافه می‌شود.
+- **صفحه‌بندی پیش‌فرض:** در صورت عدم ارسال `page` و `limit` از مقادیر پیش‌فرض (صفحه 1، تعداد 10) استفاده می‌شود.
+- **اعتبارسنجی ورودی:** فیلدهای عددی مانند page و limit اعتبارسنجی می‌شوند تا تنها شامل اعداد باشند.
+- **حذف اپراتورهای خطرناک:** اپراتورهایی مانند `$where`، `$accumulator` و `$function` از ورودی حذف می‌شوند.
+- **ترتیب استفاده از فیلترهای دستی:** ابتدا `addManualFilters()` فراخوانی و سپس `filter()` اجرا می‌شود.
 
 ---
 
@@ -453,9 +478,7 @@ This class is a one-stop solution for integrating powerful, secure, and customiz
 ```javascript
 export const securityConfig = {
   allowedOperators: [
-    "eq", "ne", "gt", "gte",
-    "lt", "lte", "in", "nin",
-    "regex", "exists", "size", "or", "and"
+    "eq", "ne", "gt", "gte", "lt", "lte", "in", "nin", "regex", "exists", "size", "or", "and"
   ],
   forbiddenFields: ["password"],
   accessLevels: {
@@ -466,7 +489,31 @@ export const securityConfig = {
   }
 };
 ```
-این تنظیمات به‌طور خودکار در متدهایی مانند filter، paginate و limitFields استفاده می‌شوند.
+این تنظیمات به‌صورت خودکار در متدهایی مانند filter، paginate و limitFields اعمال می‌شوند.
+
+---
+
+### بهبودهای امنیتی و عملکردی
+- **لاگینگ پیشرفته:**  
+  با استفاده از winston، رویدادها و خطاها با سطوح مختلف (info, warn, error) و اطلاعات دقیق (timestamp و stack trace) ثبت می‌شوند.
+- **مدیریت خطا بهبود یافته:**  
+  استفاده از کلاس سفارشی HandleERROR جهت دسته‌بندی خطاها و middleware استاندارد جهت پاسخ‌دهی به خطاها.
+- **تنظیمات داینامیک:**  
+  تنظیمات امنیتی در فایل config.js نگهداری شده و به راحتی قابل تغییر بدون نیاز به تغییر کد اصلی می‌باشد.
+- **بهینه‌سازی عملکرد:**  
+  پشتیبانی از aggregation cursor در متد execute جهت پردازش داده‌های حجیم و بهینه‌سازی ترتیب مراحل Pipeline جهت کاهش مصرف منابع.
+
+---
+
+### مدیریت خطا به صورت Middleware
+برای مدیریت یکنواخت خطاهای رخ داده در API از middleware زیر استفاده می‌شود:
+```javascript
+import catchError from "./errorHandler.js";
+
+// استفاده در Express.js:
+app.use(catchError);
+```
+این middleware، خطا را دریافت کرده و با تنظیم status و پیام مناسب، پاسخ استانداردی به کلاینت برمی‌گرداند.
 
 ---
 
@@ -474,7 +521,7 @@ export const securityConfig = {
 
 #### مثال 1: کوئری پایه
 ```javascript
-import { ApiFeatures } from "./api-features.js";
+import ApiFeatures from "./api-features.js";
 import Product from "./models/product.js";
 
 // URL: /api/products?status=active&price[gte]=100&sort=-price,createdAt&fields=name,price,category&page=1&limit=10&populate=category,brand
@@ -545,22 +592,23 @@ console.log(result);
 ---
 
 ### جمع‌بندی
-- **فیلترینگ:**  
-  از `$match` برای ترکیب فیلترهای کوئری، فیلترهای دستی و شرط `isActive: true` (در صورت وجود) استفاده می‌شود.
-- **مرتب‌سازی:**  
-  ورودی‌های جداشده با کاما به یک شیء `$sort` تبدیل می‌شود.
-- **انتخاب فیلد:**  
-  از `$project` برای بازگرداندن تنها فیلدهای مجاز استفاده می‌شود.
-- **صفحه‌بندی:**  
-  از `$skip` و `$limit` استفاده می‌شود؛ در صورت عدم ارسال پارامتر، صفحه 1 و محدودیت 10 به صورت پیش‌فرض اعمال می‌گردد.
-- **پرکردن:**  
-  از `$lookup` و `$unwind` برای اتصال اسناد مرتبط استفاده می‌شود؛ ورودی‌های رشته‌ای، شیئی و آرایه‌ای (شامل پرکردن تو در تو) پشتیبانی می‌شود.
-- **امنیت:**  
-  اپراتورهای مجاز، پاکسازی ورودی، اعتبارسنجی عددی، حذف فیلدهای ممنوع و محدودیت‌های مبتنی بر نقش از طریق تنظیمات securityConfig اجرا می‌شود.
-- **ترتیب استفاده از فیلترهای دستی:**  
-  حتماً ابتدا `addManualFilters()` را فراخوانی کنید و سپس `filter()` را اجرا نمایید.
+- **فیلترینگ:** از `$match` برای ترکیب فیلترهای کوئری، فیلترهای دستی و شرط `isActive: true` (در صورت وجود) استفاده می‌شود.
+- **مرتب‌سازی:** رشته‌های جداشده با کاما به یک شیء `$sort` تبدیل می‌شوند.
+- **انتخاب فیلد:** با استفاده از `$project` تنها فیلدهای مجاز برگردانده می‌شوند.
+- **صفحه‌بندی:** از `$skip` و `$limit` با مقادیر پیش‌فرض (صفحه 1، محدودیت 10) استفاده می‌شود؛ محدودیت بر اساس نقش کاربر تنظیم می‌شود.
+- **پرکردن:** با استفاده از `$lookup` و `$unwind` اسناد مرتبط به یک سند متصل می‌شوند؛ ورودی‌های رشته‌ای، شیئی و آرایه‌ای (شامل پرکردن تو در تو) پشتیبانی می‌شوند.
+- **امنیت:** اپراتورهای مجاز، پاکسازی ورودی، اعتبارسنجی عددی، حذف فیلدهای ممنوع و محدودیت‌های مبتنی بر نقش از طریق تنظیمات securityConfig اعمال می‌شوند.
+- **بهبود عملکرد:** پشتیبانی از aggregation cursor و بهینه‌سازی ترتیب مراحل Pipeline.
+- **لاگینگ و مدیریت خطا:** استفاده از winston برای لاگینگ و کلاس سفارشی HandleERROR به همراه middleware catchError جهت مدیریت یکنواخت خطاها.
+- **تنظیمات داینامیک:** امکان تغییر تنظیمات امنیتی از طریق فایل config.js بدون نیاز به تغییرات در کد اصلی.
 
-این کلاس یک راهکار جامع جهت ادغام قابلیت‌های پرس‌وجو قدرتمند و امن در هر پروژه Node.js/MongoDB می‌باشد.
+این کلاس و ساختار پروژه یک راهکار جامع جهت ادغام قابلیت‌های پرس‌وجو قدرتمند، امنیت بالا، بهینه‌سازی عملکرد و نگهداری آسان در هر پروژه Node.js/MongoDB فراهم می‌کند.
 
 ---
+
+اگر سؤالات بیشتری دارید یا نیاز به راهنمایی بیشتر در هر بخش احساس می‌کنید، خوشحال می‌شویم که کمکتان کنیم.
 ```
+
+---
+
+این نسخه README شامل تمامی موارد اضافه شده (لاگینگ، مدیریت خطا، تنظیمات داینامیک، بهینه‌سازی عملکرد و استفاده از middleware) می‌باشد. شما می‌توانید این فایل را به عنوان مستندات پروژه خود استفاده کنید.

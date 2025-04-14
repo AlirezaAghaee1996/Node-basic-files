@@ -1,5 +1,18 @@
+// api-features.js
 import mongoose from "mongoose";
-import { securityConfig } from "./security-config.js";
+import winston from "winston";
+import { securityConfig } from "./config.js";
+import HandleERROR from "./handleError.js";
+
+// تنظیم logger با winston
+const logger = winston.createLogger({
+  level: "info",
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [new winston.transports.Console()]
+});
 
 export class ApiFeatures {
   constructor(model, query, userRole = "guest") {
@@ -9,6 +22,8 @@ export class ApiFeatures {
     this.pipeline = [];
     this.countPipeline = [];
     this.manualFilters = {};
+    // انتخاب استفاده از cursor برای پردازش داده‌های حجیم
+    this.useCursor = false;
     this.#initialSanitization();
   }
 
@@ -19,6 +34,7 @@ export class ApiFeatures {
     const safeFilters = this.#applySecurityFilters(mergedFilters);
 
     if (Object.keys(safeFilters).length > 0) {
+      // اضافه کردن فیلتر به ابتدای pipeline جهت بهبود عملکرد
       this.pipeline.push({ $match: safeFilters });
       this.countPipeline.push({ $match: safeFilters });
     }
@@ -65,39 +81,32 @@ export class ApiFeatures {
     );
     return this;
   }
+
   populate(input = "") {
-    // Create an array to hold all populate options.
     let populateOptions = [];
   
-    // If input is an array, add each item (object or string) to populateOptions.
     if (Array.isArray(input)) {
       input.forEach(item => {
-        if (typeof item === 'object' && item.path) {
+        if (typeof item === "object" && item.path) {
           populateOptions.push(item);
-        } else if (typeof item === 'string') {
+        } else if (typeof item === "string") {
           populateOptions.push(item);
         }
       });
-    }
-    // If input is an object with a `path` property, push it as a single option.
-    else if (typeof input === "object" && input.path) {
+    } else if (typeof input === "object" && input.path) {
       populateOptions.push(input);
-    }
-    // If input is a string, split it by comma.
-    else if (typeof input === "string" && input.trim().length > 0) {
+    } else if (typeof input === "string" && input.trim().length > 0) {
       input.split(",").filter(Boolean).forEach(item => {
         populateOptions.push(item.trim());
       });
     }
   
-    // Also, if there is a 'populate' parameter in the query string, add those options.
     if (this.query.populate) {
       this.query.populate.split(",").filter(Boolean).forEach(item => {
         populateOptions.push(item.trim());
       });
     }
   
-    // Remove duplicates: if an item is an object, use its 'path' as key; if string, use the string.
     const uniqueMap = new Map();
     populateOptions.forEach(item => {
       if (typeof item === "object" && item.path) {
@@ -108,10 +117,8 @@ export class ApiFeatures {
     });
     const uniquePopulateOptions = Array.from(uniqueMap.values());
   
-    // Process each populate option.
     uniquePopulateOptions.forEach(option => {
       let field, projection = {};
-      // If the option is an object, retrieve the path and build a projection if select is provided.
       if (typeof option === "object") {
         field = option.path;
         if (option.select) {
@@ -119,16 +126,13 @@ export class ApiFeatures {
             if (fieldName) projection[fieldName.trim()] = 1;
           });
         }
-      }
-      // If the option is a string, use it directly as the field.
-      else if (typeof option === "string") {
+      } else if (typeof option === "string") {
         field = option;
       }
   
       field = field.trim();
       const { collection, isArray } = this.#getCollectionInfo(field);
   
-      // Prepare the lookup stage based on whether a projection is defined.
       let lookupStage = {};
       if (Object.keys(projection).length > 0) {
         lookupStage = {
@@ -157,10 +161,7 @@ export class ApiFeatures {
         };
       }
   
-      // Add the lookup stage to the pipeline.
       this.pipeline.push(lookupStage);
-  
-      // Add an unwind stage to flatten the results.
       this.pipeline.push({
         $unwind: {
           path: `$${field}`,
@@ -169,12 +170,13 @@ export class ApiFeatures {
       });
     });
   
+    // پشتیبانی از nested populate: در صورت نیاز، منطق تو در تو را می‌توانید اینجا اضافه کنید.
+  
     return this;
   }
   
-
   addManualFilters(filters) {
-    if(filters){
+    if (filters) {
       this.manualFilters = { ...this.manualFilters, ...filters };
     }
     return this;
@@ -182,16 +184,35 @@ export class ApiFeatures {
 
   async execute(options = {}) {
     try {
-      const [count, data] = await Promise.all([
+      // انتخاب حالت cursor در مواقع پردازش داده‌های حجیم
+      if (options.useCursor === true) {
+        this.useCursor = true;
+      }
+      // اجرای موازی pipeline‌های شمارش و داده
+      const [countResult, dataResult] = await Promise.all([
         this.Model.aggregate([...this.countPipeline, { $count: "total" }]),
-        this.Model.aggregate(this.pipeline)
-          .allowDiskUse(options.allowDiskUse || false)
-          .readConcern("majority")
+        (this.useCursor
+          ? this.Model.aggregate(this.pipeline).cursor({ batchSize: 100 }).exec()
+          : this.Model.aggregate(this.pipeline)
+              .allowDiskUse(options.allowDiskUse || false)
+              .readConcern("majority")
+        )
       ]);
 
+      const count = countResult[0]?.total || 0;
+      let data = [];
+      if (this.useCursor) {
+        const cursor = dataResult;
+        for await (const doc of cursor) {
+          data.push(doc);
+        }
+      } else {
+        data = dataResult;
+      }
+      
       return {
         success: true,
-        count: count[0]?.total || 0,
+        count,
         data
       };
     } catch (error) {
@@ -199,18 +220,15 @@ export class ApiFeatures {
     }
   }
 
-  // ---------- Security Methods ----------
+  // ---------- Security and Sanitization Methods ----------
   #initialSanitization() {
-    // Remove dangerous operators
     ["$where", "$accumulator", "$function"].forEach(op => {
       delete this.query[op];
       delete this.manualFilters[op];
     });
-
-    // Validate numeric fields
     ["page", "limit"].forEach(field => {
       if (this.query[field] && !/^\d+$/.test(this.query[field])) {
-        throw new Error(`Invalid value for ${field}`);
+        throw new HandleERROR(`Invalid value for ${field}`, 400);
       }
     });
   }
@@ -224,6 +242,7 @@ export class ApiFeatures {
         .replace(/\b(gte|gt|lte|lt|in|nin|eq|ne|regex|exists|size)\b/g, "$$$&")
     );
   }
+
   #applySecurityFilters(filters) {
     let result = { ...filters };
   
@@ -236,7 +255,6 @@ export class ApiFeatures {
   
     return result;
   }
-  
 
   #sanitizeNestedObjects(obj) {
     return Object.entries(obj).reduce((acc, [key, value]) => {
@@ -264,12 +282,12 @@ export class ApiFeatures {
   #getCollectionInfo(field) {
     const schemaPath = this.Model.schema.path(field);
     if (!schemaPath?.options?.ref) {
-      throw new Error(`Invalid populate field: ${field}`);
+      throw new HandleERROR(`Invalid populate field: ${field}`, 400);
     }
 
     const refModel = mongoose.model(schemaPath.options.ref);
     if (refModel.schema.options.restricted && this.userRole !== "admin") {
-      throw new Error(`Unauthorized to populate ${field}`);
+      throw new HandleERROR(`Unauthorized to populate ${field}`, 403);
     }
 
     return {
@@ -279,7 +297,10 @@ export class ApiFeatures {
   }
 
   #handleError(error) {
-    console.error(`[API Features Error] ${error.message}`);
-    throw new Error("Request processing failed due to security constraints");
+    // ثبت خطا در logger همراه با stack trace
+    logger.error(`[API Features Error]: ${error.message}`, { stack: error.stack });
+    throw error;
   }
 }
+
+export default ApiFeatures;
