@@ -1,4 +1,4 @@
-```markdown
+
 # Advanced API Features & Security Config for MongoDB  
 # کلاس پیشرفته API Features و تنظیمات امنیتی برای MongoDB
 
@@ -40,7 +40,6 @@ A robust, feature-rich, and secure solution to build, customize, and optimize yo
 npm install mongoose lodash dotenv
 ```
 
----
 
 ## Overview / معرفی
 
