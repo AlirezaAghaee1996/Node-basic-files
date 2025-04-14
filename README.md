@@ -1,8 +1,3 @@
-در ادامه فایل README به‌روز‌شده‌ای ارائه شده است که تغییرات و بهبودهای اضافه‌شده (مانند استفاده از winston برای لاگینگ، استفاده از aggregation cursor، بهبود مستندسازی، استفاده از middleware خطا و تنظیمات پیکربندی داینامیک) را نیز شامل می‌شود:
-
----
-
-
 # Advanced API Features & Security Config for MongoDB
 
 This repository provides a robust, feature-rich, and secure solution for building, customizing, and optimizing your Node.js APIs powered by MongoDB.
