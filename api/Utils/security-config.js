@@ -21,6 +21,11 @@ export const securityConfig = {
       admin: {
         maxLimit: 1000,
         allowedPopulate: ["*"]
-      }
+      },
+      superAdmin: {
+        maxLimit: 1000,
+        allowedPopulate: ["*"]
+      },
+
     }
   };

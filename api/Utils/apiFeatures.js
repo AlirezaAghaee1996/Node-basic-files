@@ -66,36 +66,71 @@ export class ApiFeatures {
     return this;
   }
   populate(input = "") {
-    // Determine the fields and projection options based on the input type.
-    let fields = [];
-    let projection = {};
-    
-    if (typeof input === "object" && input.path) {
-      // If an object is provided, use input.path and input.select.
-      fields = input.path.split(",").filter(Boolean);
-      if (input.select) {
-        input.select.split(" ").forEach(field => {
-          if (field) projection[field.trim()] = 1;
-        });
-      }
-    } else if (typeof input === "string") {
-      // Fallback to handling comma-separated string.
-      fields = input.split(",").filter(Boolean);
-    }
-    
-    // Also include any fields in the query string `populate` parameter.
-    const queryFields = this.query.populate?.split(",").filter(Boolean) || [];
-    fields = [...new Set([...queryFields, ...fields])];
+    // Create an array to hold all populate options.
+    let populateOptions = [];
   
-    fields.forEach(field => {
+    // If input is an array, add each item (object or string) to populateOptions.
+    if (Array.isArray(input)) {
+      input.forEach(item => {
+        if (typeof item === 'object' && item.path) {
+          populateOptions.push(item);
+        } else if (typeof item === 'string') {
+          populateOptions.push(item);
+        }
+      });
+    }
+    // If input is an object with a `path` property, push it as a single option.
+    else if (typeof input === "object" && input.path) {
+      populateOptions.push(input);
+    }
+    // If input is a string, split it by comma.
+    else if (typeof input === "string" && input.trim().length > 0) {
+      input.split(",").filter(Boolean).forEach(item => {
+        populateOptions.push(item.trim());
+      });
+    }
+  
+    // Also, if there is a 'populate' parameter in the query string, add those options.
+    if (this.query.populate) {
+      this.query.populate.split(",").filter(Boolean).forEach(item => {
+        populateOptions.push(item.trim());
+      });
+    }
+  
+    // Remove duplicates: if an item is an object, use its 'path' as key; if string, use the string.
+    const uniqueMap = new Map();
+    populateOptions.forEach(item => {
+      if (typeof item === "object" && item.path) {
+        uniqueMap.set(item.path, item);
+      } else if (typeof item === "string") {
+        uniqueMap.set(item, item);
+      }
+    });
+    const uniquePopulateOptions = Array.from(uniqueMap.values());
+  
+    // Process each populate option.
+    uniquePopulateOptions.forEach(option => {
+      let field, projection = {};
+      // If the option is an object, retrieve the path and build a projection if select is provided.
+      if (typeof option === "object") {
+        field = option.path;
+        if (option.select) {
+          option.select.split(" ").forEach(fieldName => {
+            if (fieldName) projection[fieldName.trim()] = 1;
+          });
+        }
+      }
+      // If the option is a string, use it directly as the field.
+      else if (typeof option === "string") {
+        field = option;
+      }
+  
       field = field.trim();
       const { collection, isArray } = this.#getCollectionInfo(field);
   
-      // Prepare the lookup stage.
-      // If a projection was specified (i.e. from input.select) then use the pipeline lookup syntax.
+      // Prepare the lookup stage based on whether a projection is defined.
       let lookupStage = {};
       if (Object.keys(projection).length > 0) {
-        // Using pipeline with let & $expr for custom projection.
         lookupStage = {
           $lookup: {
             from: collection,
@@ -112,7 +147,6 @@ export class ApiFeatures {
           }
         };
       } else {
-        // Default lookup without pipeline if no selection is needed.
         lookupStage = {
           $lookup: {
             from: collection,
@@ -123,11 +157,10 @@ export class ApiFeatures {
         };
       }
   
-      // Push the lookup stage.
+      // Add the lookup stage to the pipeline.
       this.pipeline.push(lookupStage);
   
-      // Add an unwind stage, with preserved nulls, regardless of isArray.
-      // (You can customize this logic further if needed.)
+      // Add an unwind stage to flatten the results.
       this.pipeline.push({
         $unwind: {
           path: `$${field}`,
@@ -135,6 +168,7 @@ export class ApiFeatures {
         }
       });
     });
+  
     return this;
   }
   
